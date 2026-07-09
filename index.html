@@ -336,6 +336,101 @@
 
     .success-card.active { display: block; }
 
+    .success-modal {
+      position: fixed;
+      inset: 0;
+      display: none;
+      align-items: center;
+      justify-content: center;
+      padding: 18px;
+      background: rgba(15, 23, 42, .62);
+      z-index: 10000;
+      backdrop-filter: blur(2px);
+    }
+
+    .success-modal.active {
+      display: flex;
+    }
+
+    .success-modal-card {
+      width: min(520px, 100%);
+      background: white;
+      border-radius: 24px;
+      overflow: hidden;
+      box-shadow: 0 24px 70px rgba(15, 23, 42, .30);
+      text-align: center;
+      border: 1px solid #d8e3ef;
+    }
+
+    .success-modal-header {
+      background: linear-gradient(135deg, var(--success), #12b76a);
+      color: white;
+      padding: 26px 18px 22px;
+    }
+
+    .success-modal-icon {
+      width: 64px;
+      height: 64px;
+      border-radius: 50%;
+      display: grid;
+      place-items: center;
+      margin: 0 auto 12px;
+      background: rgba(255,255,255,.22);
+      border: 2px solid rgba(255,255,255,.45);
+      font-size: 2rem;
+      font-weight: 900;
+    }
+
+    .success-modal-header h2 {
+      margin: 0;
+      font-size: 1.35rem;
+      line-height: 1.2;
+    }
+
+    .success-modal-body {
+      padding: 22px 20px 24px;
+    }
+
+    .success-modal-body p {
+      margin: 0 0 14px;
+      font-weight: 800;
+      color: var(--text);
+      line-height: 1.5;
+    }
+
+    .success-modal-link {
+      display: none;
+      word-break: break-word;
+      background: #f8fbff;
+      border: 1px solid #d8e3ef;
+      border-radius: 14px;
+      padding: 10px;
+      margin: 12px 0 16px;
+      font-size: .92rem;
+    }
+
+    .success-modal-link.active {
+      display: block;
+    }
+
+    .success-modal-link a {
+      color: var(--blue);
+      font-weight: 900;
+    }
+
+    .modal-close-btn {
+      width: 100%;
+      border: none;
+      border-radius: 15px;
+      padding: 14px 16px;
+      font-size: 1rem;
+      font-weight: 900;
+      cursor: pointer;
+      background: var(--blue);
+      color: white;
+      box-shadow: 0 8px 20px rgba(23,74,120,.22);
+    }
+
     .success-icon {
       width: 58px;
       height: 58px;
@@ -617,6 +712,20 @@
     </form>
   </main>
 
+  <div id="successModal" class="success-modal" role="dialog" aria-modal="true">
+    <div class="success-modal-card">
+      <div class="success-modal-header">
+        <div class="success-modal-icon">✓</div>
+        <h2>ID Card Generated Successfully</h2>
+      </div>
+      <div class="success-modal-body">
+        <p id="successModalMessage">ID card details were submitted successfully and sent to the student email.</p>
+        <div id="successModalLink" class="success-modal-link"></div>
+        <button id="successModalCloseBtn" type="button" class="modal-close-btn">Close</button>
+      </div>
+    </div>
+  </div>
+
   <div id="signaturePreviewModal" class="signature-preview-modal" role="dialog" aria-modal="true">
     <div class="signature-preview-card">
       <div class="signature-preview-header">
@@ -646,6 +755,10 @@
     const statusBox = document.getElementById('statusBox');
     const successCard = document.getElementById('successCard');
     const successLink = document.getElementById('successLink');
+    const successModal = document.getElementById('successModal');
+    const successModalMessage = document.getElementById('successModalMessage');
+    const successModalLink = document.getElementById('successModalLink');
+    const successModalCloseBtn = document.getElementById('successModalCloseBtn');
     const submitBtn = document.getElementById('submitBtn');
 
     const photoInput = document.getElementById('photo');
@@ -1140,6 +1253,74 @@
     });
 
     /*********************************
+     * SUCCESS MODAL AND FORM RESET
+     *********************************/
+    function openSuccessModal(message, verificationUrl) {
+      successModalMessage.textContent =
+        message || 'ID card details were submitted successfully and sent to the student email.';
+
+      if (verificationUrl) {
+        successModalLink.classList.add('active');
+        successModalLink.innerHTML =
+          'Verification Link:<br><a href="' +
+          verificationUrl +
+          '" target="_blank" rel="noopener">' +
+          verificationUrl +
+          '</a>';
+      } else {
+        successModalLink.classList.remove('active');
+        successModalLink.innerHTML = '';
+      }
+
+      successModal.classList.add('active');
+    }
+
+    function closeSuccessModal() {
+      successModal.classList.remove('active');
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+
+    function clearStudentFormDetails() {
+      form.reset();
+
+      document.getElementById('year').value = '2026-27';
+
+      photoInput.value = '';
+      photoPreview.removeAttribute('src');
+      photoPreview.style.display = 'none';
+
+      hiddenPayload.innerHTML = '';
+
+      clearSignature();
+      hideSignatureMessage();
+      hideStatus();
+
+      signatureConfirmed = false;
+      signed = false;
+      updateSignatureState();
+
+      successLink.innerHTML = '';
+      successCard.classList.remove('active');
+      form.classList.remove('hidden');
+
+      setDobLimits();
+
+      setTimeout(function () {
+        resizeCanvas();
+        clearSignature();
+        updateSignatureState();
+      }, 100);
+    }
+
+    successModalCloseBtn.addEventListener('click', closeSuccessModal);
+
+    successModal.addEventListener('click', function (event) {
+      if (event.target === successModal) {
+        closeSuccessModal();
+      }
+    });
+
+    /*********************************
      * GITHUB TO APPS SCRIPT SUBMISSION
      *********************************/
     function setHiddenField(name, value) {
@@ -1181,17 +1362,12 @@
       resetSubmitState();
 
       if (data.success) {
-        form.classList.add('hidden');
-        successCard.classList.add('active');
+        clearStudentFormDetails();
 
-        if (data.verificationUrl) {
-          successLink.innerHTML =
-            'Verification Link:<br><a href="' +
-            data.verificationUrl +
-            '" target="_blank" rel="noopener">' +
-            data.verificationUrl +
-            '</a>';
-        }
+        openSuccessModal(
+          'ID card details were submitted successfully. The ID card PDF and PNG files have been sent to the student email.',
+          data.verificationUrl
+        );
 
         showStatus('Success. ID card PDF and PNG files have been emailed.', 'success');
         window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -1266,7 +1442,7 @@
           longWaitTimer = setTimeout(function () {
             if (!completed) {
               showStatus(
-                'Still generating ID card. Please wait. Do not close this page or switch apps.',
+                'Still generating ID card. Please wait. Do not close this page or switch apps. The email may arrive before this page updates.',
                 'success'
               );
             }
@@ -1276,12 +1452,22 @@
             if (!completed) {
               completed = true;
               resetSubmitState();
-              showStatus(
-                'Submission is taking too long. Please check whether the ID card email was received. If not, try again after a few minutes.',
-                'error'
+
+              clearStudentFormDetails();
+
+              openSuccessModal(
+                'Your submission has been sent for ID card generation. If the email is not received within a few minutes, please contact the college office before submitting again.',
+                ''
               );
+
+              showStatus(
+                'Your submission has been sent for ID card generation. If the email is not received within a few minutes, please contact the college office before submitting again.',
+                'success'
+              );
+
+              window.scrollTo({ top: 0, behavior: 'smooth' });
             }
-          }, 240000);
+          }, 480000);
 
           form.submit();
         })
